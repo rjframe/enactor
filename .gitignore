@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/enactor
+enactor.so
+enactor.dylib
+enactor.dll
+enactor.a
+enactor.lib
+enactor-test-*
+*.exe
+*.o
+*.obj
+*.lst

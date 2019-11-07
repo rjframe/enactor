@@ -1,0 +1,102 @@
+module test.enactor.actor;
+
+import enactor.actor;
+import std.conv : text;
+
+// Message declarations must be visible to / importable by enactor.
+struct IntMessage { int a; }
+
+@("Store messages in a mailbox")
+unittest {
+    import std.typecons : Tuple;
+    import sumtype : tryMatch;
+    class A {
+        mixin Actor;
+        void receive(IntMessage msg) {}
+        void receive(int i) {}
+    }
+
+    auto box = Mailbox!A();
+    box.put(7);
+    box.put(IntMessage(5));
+
+    assert(box.moveFront().tryMatch!( (Tuple!int i) => i[0] ) == 7);
+    assert(box.front().tryMatch!( (Tuple!IntMessage m) => m[0] ) == IntMessage(5));
+}
+
+@("Pass message to actor")
+unittest {
+    class A {
+        mixin Actor;
+
+        int val;
+        void receive(IntMessage msg) { val = msg.a; }
+    }
+
+    auto a = new A();
+    send(a, IntMessage(5));
+    // TODO: Ensure messages are processed.
+    assert(a.val == 5);
+}
+
+@("Pass message to actor via address")
+unittest {
+    class A {
+        mixin Actor;
+
+        int val;
+        void receive(IntMessage msg) { val = msg.a; }
+    }
+
+    auto a = new A();
+    register("myname", a);
+    send("myname", IntMessage(5));
+    // TODO: Ensure messages are processed.
+    assert(a.val == 5);
+}
+
+@("Messages can be complex")
+unittest {
+    class A {
+        mixin Actor;
+
+        int val;
+        string message;
+        void receive(int code, string msg) {
+            val = code;
+            message = msg;
+        }
+    }
+
+    auto a = new A();
+    register("myname", a);
+    send("myname", 5, "my message");
+    // TODO: Ensure messages are processed.
+    assert(a.val == 5);
+    assert(a.message == "my message");
+}
+
+@("Supervise can manage actors")
+unittest {
+    class S {
+        mixin Supervisor;
+
+        void receive(int msg) {}
+    }
+    int started = 0;
+
+    class A {
+        mixin Actor;
+
+        this() { ++started; }
+        void receive(int msg) { throw new Exception("Oh no!"); }
+    }
+
+    auto s = new S();
+    // TODO: something like:
+    //auto actor = s.supervise(new A(), Supervise.RestartOnFail);
+
+    //assert(started == 1);
+    //send(actor, 5);
+    //assert(started == 2);
+}

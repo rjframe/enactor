@@ -1,0 +1,28 @@
+{
+	"name": "enactor",
+	"authors": [
+		"Ryan Frame"
+	],
+	"description": "Actor library for D",
+	"copyright": "Copyright © 2019 Ryan Frame",
+	"license": "MIT",
+    "dependencies": {
+        "msgpack-d": "~>1.0.1",
+        "sumtype": "~>0.9.2"
+    },
+    "configurations": [
+        { "name": "library" },
+        {
+            "name": "unittest",
+            "targetType": "executable",
+            "sourcePaths": ["test"],
+            "importPaths": ["source", "test"],
+            "preBuildCommands": ["dub run unit-threaded -c gen_ut_main -- -f bin/ut.d"],
+            "mainSourceFile": "bin/ut.d",
+            "dependencies": {
+                "unit-threaded": "~>0.10.3"
+            }
+        }
+    ],
+    "dflags": ["-preview=dip1000"]
+}
