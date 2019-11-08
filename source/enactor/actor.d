@@ -17,7 +17,7 @@ mixin template Actor() {
     static assert(is(typeof(this) == class),
             "Only classes can currently be part of an actor supervisory tree.");
 
-    private ActorCtx!(typeof(this)) _act_ctx = ActorCtx!(typeof(this))();
+    ActorCtx!(typeof(this)) _act_ctx = ActorCtx!(typeof(this))();
 }
 
 mixin template Supervisor() {
@@ -32,8 +32,13 @@ mixin template Supervisor() {
     }
 }
 
-void send(A, M...)(A actor, M message) {
-    assert(0, "Still need to implement send(actor, message...) function.");
+void send(A, M...)(A actor, M message) if (isActor!A) {
+    // TODO: Deal with M array.
+    actor._act_ctx.mailbox.put(message);
+}
+
+void send(M...)(string actorAddress, M message) {
+    assert(0, "Still need to implement send(address, message) function.");
 }
 
 ref A register(A)(string address, ref return scope A actor) {
