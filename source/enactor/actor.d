@@ -13,8 +13,7 @@ class MainActor {
     private static Registry registry = Registry();
 }
 
-// TODO: need to also ensure it has an ActorContext.
-enum isActor(T) = hasMember!(T, "receive");
+enum isActor(T) = hasMember!(T, "receive") && hasMember!(T, "_act_ctx");
 
 enum Supervise {
     AllowFail,
@@ -97,6 +96,8 @@ unittest {
 }
 
 struct Mailbox(A) {
+    import sumtype : canMatch;
+
     @property
     auto front()
         in(messages.length > 0)
@@ -128,7 +129,7 @@ struct Mailbox(A) {
     }
     +/
 
-    void put(T)(T message) { // TODO: If in sumtype
+    void put(T)(T message) if (canMatch!((t => t), Message)) {
         import std.typecons : tuple;
         messages ~= Message(tuple(message));
     }
@@ -189,7 +190,8 @@ string GenMessage(A)() {
     }
 
     foreach (func; MemberFunctionsTuple!(A, "receive")) {
-        // TODO: error? if (Parameters!func.length == 0) return "";
+        assert(Parameters!func.length > 0,
+                "Empty receive() parameter list is not allowed.");
 
         gentype ~= `_act_Tuple!(`;
         foreach (param; Parameters!func) {
