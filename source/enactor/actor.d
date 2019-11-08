@@ -114,7 +114,47 @@ struct Mailbox(A) {
     Message[] messages;
 }
 
-private string GenMessage(A)() {
+@("The registry stores actors")
+unittest {
+    class One {
+        mixin Actor;
+        void receive(int a, int b) {}
+    }
+    class Two {
+        mixin Actor;
+        void receive(string s) {}
+    }
+
+    auto r = Registry();
+    auto one = new One();
+    auto two = new Two();
+    r.register("one", one);
+    r.register("two", two);
+
+    assert(r["one"] == one);
+    assert(r["two"] == two);
+}
+
+struct Registry {
+    auto opIndex(string name)
+        in(name.length > 0)
+    {
+        return actors[name];
+    }
+
+    void register(A)(string name, A actor) if (isActor!A)
+        in(name.length > 0)
+    {
+        // TODO: Disallow re-registering a name?
+        actors[name] = actor;
+    }
+
+    private:
+
+    Object[string] actors;
+}
+
+string GenMessage(A)() {
     import std.traits;
     auto gentype = `import std.typecons:_act_Tuple=Tuple;import sumtype:SumType;alias Message=SumType!(`;
     auto imports = ``;
