@@ -48,18 +48,23 @@ struct ActorCtx(A) {
 
 struct Mailbox(A) {
     @property
-    auto front() {
+    auto front()
+        in(messages.length > 0)
+    {
         return messages[0];
     }
 
-    auto moveFront() {
+    auto moveFront()
+        in(messages.length > 0)
+    {
         auto tmp = front();
         popFront();
         return tmp;
     }
 
-    void popFront() {
-        assert(!empty(), "Cannot pop from an empty mailbox.");
+    void popFront()
+        in(messages.length > 0)
+    {
         messages = messages[1..$];
     }
 
