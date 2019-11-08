@@ -51,6 +51,26 @@ struct ActorCtx(A) {
     Mailbox!A mailbox;
 }
 
+private:
+
+@("Store messages in a mailbox")
+unittest {
+    import std.typecons : Tuple;
+    import sumtype : tryMatch;
+    class A {
+        mixin Actor;
+        void receive(string msg) {}
+        void receive(int i) {}
+    }
+
+    auto box = Mailbox!A();
+    box.put(7);
+    box.put("hello");
+
+    assert(box.moveFront().tryMatch!( (Tuple!int i) => i[0] ) == 7);
+    assert(box.front().tryMatch!( (Tuple!string s) => s[0] ) == "hello");
+}
+
 struct Mailbox(A) {
     @property
     auto front()

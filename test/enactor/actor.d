@@ -6,25 +6,7 @@ import std.conv : text;
 // Message declarations must be visible to / importable by enactor.
 struct IntMessage { int a; }
 
-@("Store messages in a mailbox")
-unittest {
-    import std.typecons : Tuple;
-    import sumtype : tryMatch;
-    class A {
-        mixin Actor;
-        void receive(IntMessage msg) {}
-        void receive(int i) {}
-    }
-
-    auto box = Mailbox!A();
-    box.put(7);
-    box.put(IntMessage(5));
-
-    assert(box.moveFront().tryMatch!( (Tuple!int i) => i[0] ) == 7);
-    assert(box.front().tryMatch!( (Tuple!IntMessage m) => m[0] ) == IntMessage(5));
-}
-
-@("Pass message to actor")
+@("Actors receive passed messages")
 unittest {
     class A {
         mixin Actor;
