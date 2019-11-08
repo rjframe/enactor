@@ -98,6 +98,8 @@ unittest {
 struct Mailbox(A) {
     import sumtype : canMatch;
 
+    mixin(GenMessage!A());
+
     @property
     auto front()
         in(messages.length > 0)
@@ -122,12 +124,25 @@ struct Mailbox(A) {
     @property
     bool empty() { return messages.length == 0; }
 
-    /+ TODO
-    int opApply(scope int delegate(Message)) {
+    int opApply(scope int delegate(Message) dg) {
+        int res = 0;
+
+        for (size_t i = 0; i < messages.length; ++i) {
+            res = dg(messages[i]);
+            if (res) break;
+        }
+        return res;
     }
-    int opApply(scope int delegate(size_t, Message)) {
+
+    int opApply(scope int delegate(size_t, Message) dg) {
+        int res = 0;
+
+        for (size_t i = 0; i < messages.length; ++i) {
+            res = dg(i, messages[i]);
+            if (res) break;
+        }
+        return res;
     }
-    +/
 
     void put(T)(T message) if (canMatch!((t => t), Message)) {
         import std.typecons : tuple;
@@ -136,7 +151,6 @@ struct Mailbox(A) {
 
     private:
 
-    mixin(GenMessage!A());
     Message[] messages;
 }
 
@@ -166,6 +180,27 @@ struct Registry {
         in(name.length > 0)
     {
         return actors[name];
+    }
+
+    int opApply(scope int delegate(Object) dg) {
+        int res = 0;
+
+        foreach (actor; actors.byValue()) {
+            res = dg(actor);
+            if (res) break;
+        }
+        return res;
+    }
+
+    int opApply(scope int delegate(size_t, Object) dg) {
+        import std.range : enumerate;
+        int res = 0;
+
+        foreach (i, actor; actors.byValue().enumerate) {
+            res = dg(i, actor);
+            if (res) break;
+        }
+        return res;
     }
 
     void register(A)(string name, A actor) if (isActor!A)
