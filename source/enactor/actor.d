@@ -2,6 +2,17 @@ module enactor.actor;
 
 import std.traits : hasMember;
 
+/** The top-level actor of the supervisory tree. */
+class MainActor {
+    mixin Actor;
+    mixin Supervisor;
+
+    // TODO
+    void receive(int i) {}
+
+    private static Registry registry = Registry();
+}
+
 // TODO: need to also ensure it has an ActorContext.
 enum isActor(T) = hasMember!(T, "receive");
 
@@ -41,9 +52,23 @@ void send(M...)(string actorAddress, M message) {
     assert(0, "Still need to implement send(address, message) function.");
 }
 
+@("Add actors to the global registry")
+unittest {
+    class One { mixin Actor; void receive(int i) {} }
+    class Two { mixin Actor; void receive(string s) {} }
+    auto one = new One();
+    auto two = new Two();
+
+    register("one", one);
+    register("two", two);
+
+    assert(MainActor.registry["one"] == one);
+    assert(MainActor.registry["two"] == two);
+}
+
 ref A register(A)(string address, ref return scope A actor) {
-    assert(0, "Still need to implement register(address, actor) function.");
-    //return actor;
+    MainActor.registry.register(address, actor);
+    return actor;
 }
 
 struct ActorCtx(A) {
