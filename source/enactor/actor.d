@@ -8,9 +8,40 @@ class MainActor {
     mixin Supervisor;
 
     // TODO
-    void receive(int i) {}
+    void receive(Object actor) {
+        processMessage(actor);
+    }
 
-    private static Registry registry = Registry();
+    private:
+
+    static Registry registry = Registry();
+
+    void processMessage(Object actor) {
+        class CX {
+            mixin Actor ACT;
+            void receive(int throwaway) { assert(0); }
+            alias _act_receiver = ACT._act_receiver;
+        }
+        auto act = actor.reinterpret!CX();
+        act._act_receiver();
+    }
+}
+
+@("TMP: processActor")
+unittest {
+    auto a = new MainActor();
+    class C {
+        mixin Actor;
+
+        int i;
+        void receive(int i) {
+            this.i = i;
+        }
+    }
+    auto c = new C();
+    send(c, 5);
+    a.processMessage(c);
+    assert(c.i == 5);
 }
 
 enum isActor(T) = hasMember!(T, "receive") && hasMember!(T, "_act_ctx");
@@ -28,6 +59,13 @@ mixin template Actor() {
             "Only classes can currently be part of an actor supervisory tree.");
 
     ActorCtx!(typeof(this)) _act_ctx = ActorCtx!(typeof(this))();
+
+    extern(C) void _act_receiver() {
+        auto msg = this._act_ctx.mailbox.front();
+        mixin(GenParamHandler!(typeof(this)));
+        receive(tup.expand);
+        _act_ctx.mailbox.popFront();
+    }
 }
 
 mixin template Supervisor() {
@@ -71,11 +109,43 @@ ref A register(A)(string address, ref return scope A actor) {
 }
 
 struct ActorCtx(A) {
-    private:
     Mailbox!A mailbox;
 }
 
+string GenParamHandler(T)() {
+    import std.traits;
+    string preamble = `import std.typecons:_act_Tuple=Tuple;`;
+    foreach (func; MemberFunctionsTuple!(T, "receive")) {
+        assert(Parameters!func.length > 0,
+                "Empty receive() parameter list is not allowed.");
+
+        string gentype = `_act_Tuple!(`;
+        foreach (param; Parameters!func) {
+            static if (isBuiltinType!param) {
+                gentype ~= param.stringof ~ `,`;
+            } else {
+                gentype ~= `_act_` ~ param.stringof ~ `,`;
+                preamble ~= `import ` ~ moduleName!param ~ `:_act_`
+                    ~ param.stringof ~ `=` ~ param.stringof ~ `;`;
+            }
+        }
+        gentype = gentype[0..$-1] ~ `)`;
+
+        return preamble ~ `auto tup = msg.tryMatch!( (` ~ gentype ~ ` t) => t );`;
+    }
+}
+
 private:
+
+/* Evil... */
+/* Reinterpret the provided value as another type. */
+T reinterpret(T, V)(V value) {
+    union Reinterpret {
+        V val;
+        T newType;
+    }
+    return Reinterpret(value).newType;
+}
 
 @("Store messages in a mailbox")
 unittest {
