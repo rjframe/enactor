@@ -8,6 +8,8 @@ struct IntMessage { int a; }
 
 @("Actors receive passed messages")
 unittest {
+    auto m = new MainActor();
+
     class A {
         mixin Actor;
 
@@ -17,7 +19,7 @@ unittest {
 
     auto a = new A();
     send(a, IntMessage(5));
-    // TODO: Ensure messages are processed.
+    m.receive(a);
     assert(a.val == 5);
 }
 
