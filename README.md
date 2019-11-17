@@ -13,8 +13,6 @@ Important note (don't ignore this): Enactor is not in a usable state yet.
 * [Running Tests](#running-the-tests)
 * [Contributing](#contributing)
     * [Roadmap](#roadmap)
-    * [Code of Conduct](#code-of-conduct)
-    * [Acknowledgements](#acknowledgments)
 * [Contact](#contact)
 * [Related Projects](#related-projects)
 
@@ -36,9 +34,7 @@ a good introduction to actors.
 
 Enactor will have two compatible actor APIs; a general-purpose API utilizing
 classes as actors, and a high-performance API with lightweight actors for
-applications that require creating and destroying thousands of actors regularly.
-
-Structs are recognizable as actors but cannot be part of a supervisory tree.
+applications that require regularly creating and destroying many actors.
 
 Key Features:
 - Class-based actor API that utilizes mixins rather than inheritance to avoid
@@ -51,10 +47,9 @@ Key Features:
 
 ### Current Design and Limitations
 
-- Actors must be classes (it's technically only required to place them in a
-  supervisory tree).
+- Actors must be classes.
 - The receive method(s) cannot be templated.
-- We currently only support limited multi-threading; see
+- Multi-threading isn't supported or tested yet; see
   [Known Issues](#known-issues) below for more information.
 
 
@@ -69,28 +64,27 @@ for details.
 Enactor is a framework, not just a library. Design decisions made by enactor
 will determine what you can and cannot (readily) do in your application.
 
-Note that enactor does add fields to your objects; names prefixed with `_act_`
-are reserved for enactor's exclusive use, though if your serializer is unable to
-de/serialize actors due to any such field, file a bug on enactor.
-
+Enactor does add fields to your objects; names prefixed with `_act_`
+are reserved for enactor's exclusive use and should be ignored in your
+de/serializers and other introspective tasks. If enactor's methods or fields
+break your generic/introspective code, file a bug on enactor.
 
 ### Usage
 
 Add to your dub.json:
-
 ```json
 "dependencies": {
-    "enactor": "~>0.0.1"
+    "enactor": "*"
 }
 ```
 
 Or dub.sdl:
 ```
-dependency "enactor" version="~>0.0.1"
+dependency "enactor" version="*"
 ```
 
 At this time, the code example below is just a possibility; it has not yet been
-implemented.
+fully implemented.
 
 TODO: Create a useful example.
 ```d
@@ -115,9 +109,9 @@ void main() {
     import enactor;
 
     auto root = new MainActor();
-    auto super = root.supervise(new Super(), Supervise.RestartOnFail);
-    auto one = super.supervise(new Act(), Supervise.RestartOnFail);
-    auto two = super.supervise(new Act(), Supervise.RestartOnFail);
+    auto supervisor = root.supervise(new Super(), Supervise.RestartOnFail);
+    auto one = supervisor.supervise(new Act(), Supervise.RestartOnFail);
+    auto two = supervisor.supervise(new Act(), Supervise.RestartOnFail);
 
     one.send(two, MyMessage(1));
     assert(two.val == 1);
@@ -133,14 +127,20 @@ void main() {
 
 #### Multi-threading
 
-Currently, MainActor will spawn a supervisor for each processor core - 1.
-Actors will be registered to each supervisor equally, under the assumption that
-each actor will on average do the same work, which is often not going to be the
-case. Moving an actor from one core to another is not yet supported, but they
-can communicate across cores just as they do other actors on the same core.
+MainActor doesn't yet multi-thread (well... I don't have an event loop yet at
+all).
 
-In time I'll do proper multi-threading; I'm waiting to see how the current
-memory-management tools in D are going to change before jumping in on this.
+The initial plan will be: MainActor will spawn a supervisor for each processor
+core - 1. Actors will be registered to each supervisor equally, under the
+assumption that each actor will on average do the same work, which is often not
+going to be the case. Moving an actor from one core to another is not yet
+supported, but they can communicate across cores just as they do other actors on
+the same core.
+
+In time I'll do proper multi-threading and you'll be able to swap schedulers
+with anything you like; I'm waiting to see how the current memory-management
+tools in D are going to change before jumping in on this. I'm  beginning small,
+ensuring I have something, and will test and improve/replace as we go along.
 
 
 ## Running the Tests
@@ -173,8 +173,11 @@ that we can efficiently create thousands of actors on demand.
 
 #### Inter-process/machine Communication
 
-The actor registry should be distributed; component deployment and configuration
-is a sysadmin's domain, and shouldn't be forced by application design decisions.
+Supporting a distributed actor registry means you can easily separate your
+components onto new processes and machines, allowing you scale as necessary
+based on production data; you don't have to guess your architecture needs during
+development.
+
 
 #### Error Handling / Debugging Tools
 
@@ -186,13 +189,13 @@ provide help with debugging (errors as messages, etc.).
 
 - Website: <[www.ryanjframe.com](https://www.ryanjframe.com)>
 - Email: <code@ryanjframe.com>
-- diaspora*: rjframe@resocial.strangelyinbetween.com
+- diaspora*: <rjframe@resocial.strangelyinbetween.com>
 
 ## Related Projects
 
 Libraries for D:
 
-* Phobos: If all you need is message passing between threads, there's
+- Phobos: If all you need is message-passing between threads, there's
   [std.concurrency](https://dlang.org/phobos/std_concurrency.html).
 - [Dakka](http://code.dlang.org/packages/dakka)
 
