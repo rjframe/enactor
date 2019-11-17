@@ -62,7 +62,7 @@ mixin template Actor() {
 
     extern(C) void _act_receiver() {
         auto msg = this._act_ctx.mailbox.front();
-        pragma(msg, "**ParamHandler:\n" ~ GenParamHandler!(typeof(this)));
+        //pragma(msg, "**ParamHandler:\n" ~ GenParamHandler!(typeof(this)));
         mixin(GenParamHandler!(typeof(this)));
         receive(tup.expand);
         _act_ctx.mailbox.popFront();
@@ -115,25 +115,47 @@ struct ActorCtx(A) {
 
 string GenParamHandler(T)() {
     import std.traits;
-    string preamble = `import std.typecons:_act_Tuple=Tuple;`;
+    auto imports = ImportBuilder()
+            .put("std.typecons", "Tuple", "_act_Tuple");
+
     foreach (func; MemberFunctionsTuple!(T, "receive")) {
         assert(Parameters!func.length > 0,
                 "Empty receive() parameter list is not allowed.");
 
-        string gentype = `_act_Tuple!(`;
+        auto tup = GenericTypeBuilder!"_act_Tuple"();
         foreach (param; Parameters!func) {
             static if (isBuiltinType!param) {
-                gentype ~= param.stringof ~ `,`;
+                tup.put(param.stringof);
             } else {
-                gentype ~= `_act_` ~ param.stringof ~ `,`;
-                preamble ~= `import ` ~ moduleName!param ~ `:_act_`
-                    ~ param.stringof ~ `=` ~ param.stringof ~ `;`;
+                tup.put("_act_" ~ param.stringof);
+                imports.put(
+                        moduleName!param,
+                        param.stringof,
+                        "_act_" ~ param.stringof);
             }
         }
-        gentype = gentype[0..$-1] ~ `)`;
-
-        return preamble ~ `auto tup = msg.tryMatch!( (` ~ gentype ~ ` t) => t );`;
+        return imports.code ~ `auto tup=msg.tryMatch!((` ~ tup.code ~ ` t)=>t);`;
     }
+}
+
+@("GenParamHandler w/ one param")
+unittest {
+    class A {
+        mixin Actor;
+        void receive(int msg) {}
+    }
+
+    assert(GenParamHandler!A() == "import std.typecons:_act_Tuple=Tuple;auto tup=msg.tryMatch!((_act_Tuple!(int) t)=>t);", GenParamHandler!A());
+}
+
+@("GenParamHandler w/ two params")
+unittest {
+    class A {
+        mixin Actor;
+        void receive(int msg, string str) {}
+    }
+
+assert(GenParamHandler!A() == "import std.typecons:_act_Tuple=Tuple;auto tup=msg.tryMatch!((_act_Tuple!(int,string) t)=>t);", GenParamHandler!A());
 }
 
 private:
@@ -169,7 +191,7 @@ unittest {
 struct Mailbox(A) {
     import sumtype : canMatch;
 
-    pragma(msg, "***GenMessage:\n" ~ GenMessage!A());
+    //pragma(msg, "***GenMessage:\n" ~ GenMessage!A());
     mixin(GenMessage!A());
 
     @property
