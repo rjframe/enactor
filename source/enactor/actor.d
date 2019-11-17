@@ -170,7 +170,6 @@ struct Mailbox(A) {
     import sumtype : canMatch;
 
     pragma(msg, "***GenMessage:\n" ~ GenMessage!A());
-    pragma(msg, "***GenMessage2:\n" ~ GenMessage2!A());
     mixin(GenMessage!A());
 
     @property
@@ -293,12 +292,11 @@ string GenMessage(A)() {
     assert(MemberFunctionsTuple!(A, "receive").length > 0,
             "Actor must have a receive method.");
 
-    auto preImports = ImportBuilder();
-    auto sumtypeDataImports = ImportBuilder();
-    preImports.put("std.typecons", "Tuple", "_act_Tuple");
-    preImports.put("sumtype", "SumType");
-    auto gentype = preImports.code ~ `alias Message=SumType!(`;
+    auto imports = ImportBuilder()
+            .put("std.typecons", "Tuple", "_act_Tuple")
+            .put("sumtype", "SumType");
 
+    auto sumt = GenericTypeBuilder!"alias Message=SumType"();
     foreach (func; MemberFunctionsTuple!(A, "receive")) {
         assert(Parameters!func.length > 0,
                 "Empty receive() parameter list is not allowed.");
@@ -309,15 +307,15 @@ string GenMessage(A)() {
                 tup.put(param.stringof);
             } else {
                 tup.put("_act_" ~ param.stringof);
-                sumtypeDataImports.put(
-                        moduleName!param, param.stringof,
+                imports.put(
+                        moduleName!param,
+                        param.stringof,
                         "_act_" ~ param.stringof);
             }
         }
-        gentype ~= tup.code ~ ",";
+        sumt.put(tup.code);
     }
-
-    return sumtypeDataImports.code ~ gentype[0..$-1] ~ `);`;
+    return imports.code ~ sumt.code ~ `;`;
 }
 
 @("GenMessage w/ int param")
@@ -341,9 +339,10 @@ unittest {
 }
 
 struct ImportBuilder {
-    void put(string moduleFqdn, string type, string alias_ = "") {
+    auto put(string moduleFqdn, string type, string alias_ = "") {
         code ~= ("import " ~ moduleFqdn ~ ":" ~ alias_ ~
                 (alias_.length ? "=" : "") ~ type ~ ";");
+        return this;
     }
     string code;
 }
