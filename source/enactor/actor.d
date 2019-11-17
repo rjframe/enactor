@@ -218,7 +218,7 @@ struct Mailbox(A) {
         return res;
     }
 
-    void put(T)(T message) if (canMatch!((t => t), Message)) {
+    void put(T...)(T message) if (canMatch!((t => t), Message)) {
         import std.typecons : tuple;
         messages ~= Message(tuple(message));
     }

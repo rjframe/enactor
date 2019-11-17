@@ -41,6 +41,8 @@ unittest {
 
 @("Messages can be complex")
 unittest {
+    auto m = new MainActor();
+
     class A {
         mixin Actor;
 
@@ -54,8 +56,8 @@ unittest {
 
     auto a = new A();
     register("myname", a);
-    send("myname", 5, "my message");
-    // TODO: Ensure messages are processed.
+    send(a, 5, "my message");
+    m.receive(a);
     assert(a.val == 5);
     assert(a.message == "my message");
 }
