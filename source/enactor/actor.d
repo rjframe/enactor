@@ -75,14 +75,14 @@ mixin template Supervisor() {
         mixin Actor;
     }
 
-    void supervise(A)(A actor, Supervise policy) {
+    A supervise(A)(A actor, Supervise policy) {
         assert(_act_hasMember!(A, "_act_ctx"), "Cannot supervise " ~ A.stringof ~ ". Maybe you need to `mixin Actor`?");
         assert(0, "Still need to implement supervise(actor, policy) function.");
+        //return actor;
     }
 }
 
 void send(A, M...)(A actor, M message) if (isActor!A) {
-    // TODO: Deal with M array.
     actor._act_ctx.mailbox.put(message);
 }
 
