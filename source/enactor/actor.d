@@ -62,6 +62,7 @@ mixin template Actor() {
 
     extern(C) void _act_receiver() {
         auto msg = this._act_ctx.mailbox.front();
+        pragma(msg, "**ParamHandler:\n" ~ GenParamHandler!(typeof(this)));
         mixin(GenParamHandler!(typeof(this)));
         receive(tup.expand);
         _act_ctx.mailbox.popFront();
@@ -168,6 +169,8 @@ unittest {
 struct Mailbox(A) {
     import sumtype : canMatch;
 
+    pragma(msg, "***GenMessage:\n" ~ GenMessage!A());
+    pragma(msg, "***GenMessage2:\n" ~ GenMessage2!A());
     mixin(GenMessage!A());
 
     @property
@@ -287,29 +290,71 @@ struct Registry {
 
 string GenMessage(A)() {
     import std.traits;
-    auto gentype = `import std.typecons:_act_Tuple=Tuple;import sumtype:SumType;alias Message=SumType!(`;
-    auto imports = ``;
+    assert(MemberFunctionsTuple!(A, "receive").length > 0,
+            "Actor must have a receive method.");
 
-    if (MemberFunctionsTuple!(A, "receive").length == 0) {
-        assert(0, "Actor must have a receive method.");
-    }
+    auto preImports = ImportBuilder();
+    auto sumtypeDataImports = ImportBuilder();
+    preImports.put("std.typecons", "Tuple", "_act_Tuple");
+    preImports.put("sumtype", "SumType");
+    auto gentype = preImports.code ~ `alias Message=SumType!(`;
 
     foreach (func; MemberFunctionsTuple!(A, "receive")) {
         assert(Parameters!func.length > 0,
                 "Empty receive() parameter list is not allowed.");
 
-        gentype ~= `_act_Tuple!(`;
+        auto tup = GenericTypeBuilder!"_act_Tuple"();
         foreach (param; Parameters!func) {
             static if (isBuiltinType!param) {
-                gentype ~= param.stringof ~ `,`;
+                tup.put(param.stringof);
             } else {
-                gentype ~= `_act_` ~ param.stringof ~ `,`;
-                imports ~= `import ` ~ moduleName!param ~ `:_act_`
-                        ~ param.stringof ~ `=` ~ param.stringof ~ `;`;
+                tup.put("_act_" ~ param.stringof);
+                sumtypeDataImports.put(
+                        moduleName!param, param.stringof,
+                        "_act_" ~ param.stringof);
             }
         }
-        gentype = gentype[0..$-1] ~ `),`;
+        gentype ~= tup.code ~ ",";
     }
 
-    return imports ~ gentype[0..$-1] ~ `);`;
+    return sumtypeDataImports.code ~ gentype[0..$-1] ~ `);`;
+}
+
+@("GenMessage w/ int param")
+unittest {
+    class A {
+        mixin Actor;
+        void receive(int msg) {}
+    }
+
+    assert(GenMessage!A() == "import std.typecons:_act_Tuple=Tuple;import sumtype:SumType;alias Message=SumType!(_act_Tuple!(int));", GenMessage!A());
+}
+
+@("GenMessage w/ (int, string) params")
+unittest {
+    class A {
+        mixin Actor;
+        void receive(int msg, string str) {}
+    }
+
+    assert(GenMessage!A() == "import std.typecons:_act_Tuple=Tuple;import sumtype:SumType;alias Message=SumType!(_act_Tuple!(int,string));", GenMessage!A());
+}
+
+struct ImportBuilder {
+    void put(string moduleFqdn, string type, string alias_ = "") {
+        code ~= ("import " ~ moduleFqdn ~ ":" ~ alias_ ~
+                (alias_.length ? "=" : "") ~ type ~ ";");
+    }
+    string code;
+}
+
+struct GenericTypeBuilder(string name) {
+    void put(string memberType) {
+        _code ~= memberType ~ ",";
+    }
+
+    @property
+    string code() { return _code[0..$-1] ~ ")"; }
+
+    private string _code = name ~ "!(";
 }
