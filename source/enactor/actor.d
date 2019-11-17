@@ -138,26 +138,6 @@ string GenParamHandler(T)() {
     }
 }
 
-@("GenParamHandler w/ one param")
-unittest {
-    class A {
-        mixin Actor;
-        void receive(int msg) {}
-    }
-
-    assert(GenParamHandler!A() == "import std.typecons:_act_Tuple=Tuple;auto tup=msg.tryMatch!((_act_Tuple!(int) t)=>t);", GenParamHandler!A());
-}
-
-@("GenParamHandler w/ two params")
-unittest {
-    class A {
-        mixin Actor;
-        void receive(int msg, string str) {}
-    }
-
-assert(GenParamHandler!A() == "import std.typecons:_act_Tuple=Tuple;auto tup=msg.tryMatch!((_act_Tuple!(int,string) t)=>t);", GenParamHandler!A());
-}
-
 private:
 
 /* Evil... */
@@ -338,26 +318,6 @@ string GenMessage(A)() {
         sumt.put(tup.code);
     }
     return imports.code ~ sumt.code ~ `;`;
-}
-
-@("GenMessage w/ int param")
-unittest {
-    class A {
-        mixin Actor;
-        void receive(int msg) {}
-    }
-
-    assert(GenMessage!A() == "import std.typecons:_act_Tuple=Tuple;import sumtype:SumType;alias Message=SumType!(_act_Tuple!(int));", GenMessage!A());
-}
-
-@("GenMessage w/ (int, string) params")
-unittest {
-    class A {
-        mixin Actor;
-        void receive(int msg, string str) {}
-    }
-
-    assert(GenMessage!A() == "import std.typecons:_act_Tuple=Tuple;import sumtype:SumType;alias Message=SumType!(_act_Tuple!(int,string));", GenMessage!A());
 }
 
 struct ImportBuilder {
