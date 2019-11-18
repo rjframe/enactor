@@ -25,6 +25,8 @@ unittest {
 
 @("Pass message to actor via address")
 unittest {
+    auto m = new MainActor();
+
     class A {
         mixin Actor;
 
@@ -35,7 +37,7 @@ unittest {
     auto a = new A();
     register("myname", a);
     send("myname", IntMessage(5));
-    // TODO: Ensure messages are processed.
+    m.receive(a);
     assert(a.val == 5);
 }
 
