@@ -27,23 +27,6 @@ class MainActor {
     }
 }
 
-@("TMP: processActor")
-unittest {
-    auto a = new MainActor();
-    class C {
-        mixin Actor;
-
-        int i;
-        void receive(int i) {
-            this.i = i;
-        }
-    }
-    auto c = new C();
-    send(c, 5);
-    a.processMessage(c);
-    assert(c.i == 5);
-}
-
 enum isActor(T) = hasMember!(T, "receive") && hasMember!(T, "_act_ctx");
 
 enum Supervise {
@@ -86,8 +69,16 @@ void send(A, M...)(A actor, M message) if (isActor!A) {
     actor._act_ctx.mailbox.put(message);
 }
 
-void send(M...)(string actorAddress, M message) {
-    assert(0, "Still need to implement send(address, message) function.");
+void send(M...)(string actorAddress, M message)
+    in(MainActor.registry.isRegistered(actorAddress))
+{
+    class CX {
+        mixin Actor ACT;
+        void receive(M msg) { assert(0); }
+        alias _act_ctx = ACT._act_ctx;
+    }
+    auto actor = MainActor.registry[actorAddress].reinterpret!CX();
+    actor._act_ctx.mailbox.put(message);
 }
 
 @("Add actors to the global registry")
@@ -283,6 +274,8 @@ struct Registry {
         // TODO: Disallow re-registering a name?
         actors[name] = actor;
     }
+
+    bool isRegistered(string name) { return !!(name in actors); }
 
     private:
 
