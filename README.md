@@ -71,54 +71,50 @@ break your generic/introspective code, file a bug on enactor.
 
 ### Usage
 
-Add to your dub.json:
-```json
-"dependencies": {
-    "enactor": "*"
-}
-```
+Enactor is not yet registered on dub. You'll need to clone the repository and
+add it as a path-based dependency to your project.
 
-Or dub.sdl:
-```
-dependency "enactor" version="*"
-```
+(future) Add the dependency via dub: `dub add enactor`
 
-At this time, the code example below is just a possibility; it has not yet been
-fully implemented.
 
-TODO: Create a useful example.
+#### Slow fibonacci example:
+
 ```d
-import enactor : Supervisor, Actor;
+import enactor;
 
-struct MyMessage { int i; }
-
-class Super {
-    mixin Supervisor;
-}
-
-class Act {
+class Adder {
     mixin Actor;
 
-    int val;
-    void receive(MyMessage m) {
-        val = m.i;
+    this(string otherName) {
+        this.other = otherName;
     }
+
+    void receive(int j) {
+        i += j;
+        send(other, i);
+        if (i > 10) send("main", Application.ExitSuccess);
+    }
+
+    private:
+
+    int i = 0;
+    string other;
 }
 
 void main() {
     import enactor;
 
-    auto root = new MainActor();
-    auto supervisor = root.supervise(new Super(), Supervise.RestartOnFail);
-    auto one = supervisor.supervise(new Act(), Supervise.RestartOnFail);
-    auto two = supervisor.supervise(new Act(), Supervise.RestartOnFail);
+    auto m = new MainActor();
 
-    one.send(two, MyMessage(1));
-    assert(two.val == 1);
+    auto first = new Adder("adderTwo");
+    auto second = new Adder("adderOne");
+    register("adderOne", first);
+    register("adderTwo", second);
 
-    register("my-address", one);
-    send("my-address", MyMessage(2));
-    assert(one.val == 2);
+    send("a", 1);
+    m.start();
+
+    writeln("Last two numbers: ", first.i, " and ", second.i);
 }
 ```
 
@@ -127,18 +123,17 @@ void main() {
 
 #### Multi-threading
 
-MainActor doesn't yet multi-thread (well... I don't have an event loop yet at
-all).
+Enactor currently runs all actors in a single thread.
 
 The initial plan will be: MainActor will spawn a supervisor for each processor
 core - 1. Actors will be registered to each supervisor equally, under the
-assumption that each actor will on average do the same work, which is often not
-going to be the case. Moving an actor from one core to another is not yet
+assumption that each actor will on average do the same work (which is not
+necessarily true). Moving an actor from one core to another is not yet
 supported, but they can communicate across cores just as they do other actors on
 the same core.
 
 In time I'll do proper multi-threading and you'll be able to swap schedulers
-with anything you like; I'm waiting to see how the current memory-management
+with custom implementations; I'm waiting to see how the current memory-management
 tools in D are going to change before jumping in on this. I'm  beginning small,
 ensuring I have something, and will test and improve/replace as we go along.
 
@@ -197,7 +192,7 @@ Libraries for D:
 
 - Phobos: If all you need is message-passing between threads, there's
   [std.concurrency](https://dlang.org/phobos/std_concurrency.html).
-- [Dakka](http://code.dlang.org/packages/dakka)
+- [Dakka](http://code.dlang.org/packages/dakka) (last update was 2015)
 
 Libraries for other languages:
 

@@ -2,19 +2,44 @@ module enactor.actor;
 
 import std.traits : hasMember;
 
+import enactor.trace;
+
+enum Application {
+    Run,
+    ExitSuccess
+}
+
 /** The top-level actor of the supervisory tree. */
 class MainActor {
     mixin Actor;
     mixin Supervisor;
 
-    // TODO
-    void receive(Object actor) {
-        processMessage(actor);
+
+    void receive(Application state) {
+        final switch (state) {
+            case Application.Run:
+                foreach (actor; registry) {
+                    processMessage(actor);
+                }
+                send(this, Application.Run);
+                break;
+            case Application.ExitSuccess:
+                trace("Exiting.");
+                exit = true;
+                break;
+        }
+    }
+
+    void start() {
+        registry.register("main", this);
+        send(this, Application.Run);
+        while(!exit) processMessage(this);
     }
 
     private:
 
     static Registry registry = Registry();
+    bool exit = false;
 
     void processMessage(Object actor) {
         class CX {
@@ -44,11 +69,13 @@ mixin template Actor() {
     ActorCtx!(typeof(this)) _act_ctx = ActorCtx!(typeof(this))();
 
     extern(C) void _act_receiver() {
-        auto msg = this._act_ctx.mailbox.front();
+        if (this._act_ctx.mailbox.empty) return;
+
+        auto msg = this._act_ctx.mailbox.moveFront();
         //pragma(msg, "**ParamHandler:\n" ~ GenParamHandler!(typeof(this)));
         mixin(GenParamHandler!(typeof(this)));
+        trace(tup);
         receive(tup.expand);
-        _act_ctx.mailbox.popFront();
     }
 }
 
@@ -70,7 +97,7 @@ void send(A, M...)(A actor, M message) if (isActor!A) {
 }
 
 void send(M...)(string actorAddress, M message)
-    in(MainActor.registry.isRegistered(actorAddress))
+    in(MainActor.registry.isRegistered(actorAddress), actorAddress)
 {
     class CX {
         mixin Actor ACT;
@@ -271,7 +298,8 @@ struct Registry {
     void register(A)(string name, A actor) if (isActor!A)
         in(name.length > 0)
     {
-        // TODO: Disallow re-registering a name?
+        // TODO: Disallow re-registering a name.
+        // TODO: Hash the name. Create custom container so we don't hash a hash?
         actors[name] = actor;
     }
 
