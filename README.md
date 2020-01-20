@@ -184,7 +184,7 @@ provide help with debugging (errors as messages, etc.).
 
 - Website: <[www.ryanjframe.com](https://www.ryanjframe.com)>
 - Email: <code@ryanjframe.com>
-- diaspora*: <rjframe@resocial.strangelyinbetween.com>
+- diaspora*: <rjframe@diasp.org>
 
 ## Related Projects
 
